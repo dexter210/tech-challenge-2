@@ -25,7 +25,7 @@ data "aws_iam_policy_document" "github_actions_trust" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:dexter210/tech-challenge-2:ref:refs/heads/gitops"]
+      values   = ["repo:dexter210@78829953/tech-challenge-2@1460084161:ref:refs/heads/gitops"]
     }
   }
 }
