@@ -1,0 +1,21 @@
+# Python files generated automatically
+__pycache__/
+*.pyc
+.venv/
+
+# Terraform local files and state
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+.terraform.tfvars.lock.hcl
+crash.log
+
+# Local secrets and environment files
+.env
+.env.*
+
+# Local editor settings
+.vscode/
+.idea/
