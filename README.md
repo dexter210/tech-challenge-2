@@ -2,7 +2,7 @@
 
 ## Architecture
 
-![AWS EKS CI/CD and GitOps architecture](screenshots/eks-cicd-gitops-architecture.png)
+![AWS EKS CI/CD and GitOps architecture](screenshots/AWS-style%20architecture%20diagram.png)
 
 I built a containerized **Hello, World!** application and deployed it to Amazon EKS. I used Terraform to provision infrastructure, Jenkins to build and deploy the application, and a separate GitOps workflow with GitHub Actions and Argo CD.
 
