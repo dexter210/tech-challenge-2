@@ -2,22 +2,7 @@
 
 ## Architecture
 
-```mermaid
-flowchart TD
-    Dev["Application code"] --> GitHub["GitHub repository"]
-    GitHub --> Jenkins["Jenkins on main"]
-    Jenkins --> ECR["Amazon ECR"]
-    Jenkins --> Helm["Helm deployment"]
-    ECR --> EKS["Amazon EKS"]
-    Helm --> EKS
-    GitHub --> Actions["GitHub Actions on gitops"]
-    Actions --> ECR
-    Actions --> Values["Update Helm image tag in Git"]
-    Values --> Argo["Argo CD"]
-    Argo --> EKS
-    User["User"] --> ALB["Application Load Balancer"]
-    ALB --> EKS
-```
+![AWS EKS CI/CD and GitOps architecture](screenshots/eks-cicd-gitops-architecture.png)
 
 I built a containerized **Hello, World!** application and deployed it to Amazon EKS. I used Terraform to provision infrastructure, Jenkins to build and deploy the application, and a separate GitOps workflow with GitHub Actions and Argo CD.
 
@@ -53,6 +38,10 @@ docker run --rm -p 5000:5000 tech-challenge-2-app:local
 
 Open `http://localhost:5000` to test the application. Stop the container with Ctrl+C.
 
+![I built the Docker image and ran the application locally.](screenshots/03-application-running-in-docker.png)
+
+*I built the Docker image and ran the application locally.*
+
 ## 2. Provision AWS infrastructure
 
 I used Terraform to define the AWS infrastructure, including a VPC, networking, IAM resources, an ECR repository, and the EKS cluster and managed node group. The lab used the `us-east-1` region and `t3.small` worker nodes.
@@ -66,6 +55,10 @@ kubectl get nodes
 
 Terraform state is local in this lab. Keep the state and any backups secure and do not commit them to Git.
 
+![Terraform finished creating the infrastructure.](screenshots/15-terraform-apply-complete.png)
+
+*Terraform finished creating the infrastructure.*
+
 ## 3. Deploy with Helm and expose the application
 
 I used the Helm chart in `helm/tech-challenge-2` to define the deployment, service, ingress, and autoscaling configuration. I installed the AWS Load Balancer Controller so the Kubernetes ingress could create an Application Load Balancer.
@@ -78,6 +71,10 @@ kubectl get ingress hello-app
 ```
 
 I opened the load balancer address in a browser and confirmed that the application displayed **Hello, World!** The lab used HTTP; production deployments should use TLS and appropriate network controls.
+
+![I verified the application through the Application Load Balancer.](screenshots/29-application-through-alb.png)
+
+*I verified the application through the Application Load Balancer.*
 
 ## 4. Automate deployment with Jenkins
 
@@ -93,6 +90,10 @@ The pipeline stages are:
 
 I configured Jenkins to poll the repository and verified a successful build triggered by a source-control change. The Jenkins agent used AWS credentials and a Kubernetes context configured on the Windows host.
 
+![The Jenkins pipeline completed after a source-control change.](screenshots/55-automatic-jenkins-build.png)
+
+*The Jenkins pipeline completed after a source-control change.*
+
 ## 5. Configure GitOps with GitHub Actions and Argo CD
 
 I created a separate `gitops` branch and configured GitHub Actions to authenticate to AWS using OpenID Connect (OIDC). The workflow builds an image, pushes it to ECR, and commits the new image tag to `helm/tech-challenge-2/values-gitops.yaml`.
@@ -107,6 +108,10 @@ I connected the private repository to Argo CD and created the `hello-gitops` app
 
 The GitOps values disable ingress for this separate release. I verified that a Git change led to a new image tag, an Argo CD sync, and a successful Kubernetes rollout:
 
+![Argo CD synchronized the GitOps application.](screenshots/68-argocd-automatic-sync.png)
+
+*Argo CD synchronized the GitOps application.*
+
 ```powershell
 kubectl get deployment hello-gitops -n gitops-demo -o jsonpath="{.spec.template.spec.containers[0].image}"
 kubectl rollout status deployment/hello-gitops -n gitops-demo
@@ -119,6 +124,10 @@ kubectl port-forward -n gitops-demo service/hello-gitops 8083:80
 ```
 
 Open `http://localhost:8083` and stop the port forward with Ctrl+C.
+
+![I confirmed the GitOps application responded through local port forwarding.](screenshots/67-gitops-application-responding.png)
+
+*I confirmed the GitOps application responded through local port forwarding.*
 
 ## 6. Test autoscaling
 
@@ -134,6 +143,14 @@ kubectl get pods -n gitops-demo -o wide
 
 I also observed Cluster Autoscaler add worker-node capacity during scaling tests.
 
+![The Cluster Autoscaler added capacity during the test.](screenshots/38-cluster-autoscaler-scale-up.png)
+
+*The Cluster Autoscaler added capacity during the test.*
+
+![The HPA increased replicas after memory usage exceeded the target.](screenshots/73-gitops-memory-autoscaling.png)
+
+*The HPA increased replicas after memory usage exceeded the target.*
+
 ## 7. Verify the deployment
 
 ```powershell
@@ -148,7 +165,7 @@ I confirmed successful Jenkins and GitHub Actions runs, healthy Argo CD synchron
 
 ## Screenshots
 
-Project screenshots will be added throughout this README after they are uploaded to the repository.
+Additional project screenshots are available in the [screenshots folder](screenshots/).
 
 ## Cost and cleanup
 
