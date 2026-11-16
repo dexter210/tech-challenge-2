@@ -2,4 +2,4 @@ disableIngress: true
 
 image:
   repository: "930702873975.dkr.ecr.us-east-1.amazonaws.com/tech-challenge-2-app"
-  tag: "gitops-43938786688-1"
+  tag: "gitops-43946119061-1"
