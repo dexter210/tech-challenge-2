@@ -2,9 +2,9 @@
 
 A hands-on deployment of a containerized Python/Flask application to **Amazon EKS**, with two independent CI/CD approaches: **Jenkins + Helm** and **GitHub Actions + Argo CD**.
 
-**[Architecture](#architecture) · [Source code](app.py) · [Terraform](terraform/) · [Helm chart](helm/tech-challenge-2/) · [Jenkins pipeline](Jenkinsfile) · [GitOps branch](../../tree/gitops) · [Screenshots](screenshots/)**
+**[Architecture](#architecture) · [Implementation](#implementation-results) · [Run locally](#run-locally) · [Terraform](terraform/) · [Helm](helm/tech-challenge-2/) · [Jenkins](Jenkinsfile) · [GitOps branch](../../tree/gitops) · [Screenshots](screenshots/)**
 
-> **Deployment status:** This repository documents a tested lab deployment; the AWS infrastructure may have been torn down to avoid ongoing charges. Screenshots show results from the completed tests, not a currently hosted live application.
+> **Deployment status:** This repository documents a successfully tested lab deployment, not an always-on hosted service. The application URL from the original lab is not advertised as a live endpoint. AWS resources may incur charges if you redeploy.
 
 ## Architecture
 
@@ -13,6 +13,27 @@ A hands-on deployment of a containerized Python/Flask application to **Amazon EK
 I built a containerized **Hello, World!** application and deployed it to Amazon EKS. I used Terraform to provision infrastructure, Jenkins to build and deploy the application, and a separate GitOps workflow with GitHub Actions and Argo CD.
 
 The Jenkins deployment and the GitOps deployment are separate Helm releases. Jenkins manages `hello-app` in the `default` namespace; Argo CD manages `hello-gitops` in `gitops-demo`. The Jenkins deployment uses an Application Load Balancer for public access. I tested the GitOps deployment locally using port forwarding.
+
+## Implementation results
+
+- Provisioned an Amazon EKS cluster, VPC, IAM roles, an ECR registry, and managed worker nodes using Terraform.
+- Deployed the Flask container to Kubernetes using Helm and confirmed access through an AWS Application Load Balancer.
+- Executed a Jenkins pipeline that builds and pushes container images to ECR and rolls out updated application versions.
+- Tested an independent GitOps path using GitHub Actions (OIDC), Argo CD, and an automatically synchronized Helm release.
+- Verified CPU-based horizontal pod scaling, memory-driven scaling from **1 to 3 replicas**, and automatic worker-node capacity changes.
+
+**Evidence:** [Terraform deployment](screenshots/15-terraform-apply-complete.png) · [ALB application response](screenshots/29-application-through-alb.png) · [Jenkins CI/CD](screenshots/55-automatic-jenkins-build.png) · [Argo CD sync](screenshots/68-argocd-automatic-sync.png) · [Autoscaling](screenshots/73-gitops-memory-autoscaling.png)
+
+## Repository structure
+
+| Path | Purpose |
+| --- | --- |
+| [`app.py`](app.py), [`requirements.txt`](requirements.txt), [`Dockerfile`](Dockerfile) | Flask application and container build |
+| [`terraform/`](terraform/) | AWS networking, EKS, IAM, ECR, and cluster infrastructure |
+| [`helm/tech-challenge-2/`](helm/tech-challenge-2/) | Kubernetes Deployment, Service, Ingress, and HPA |
+| [`Jenkinsfile`](Jenkinsfile) | Jenkins image build, ECR push, and Helm rollout |
+| [`gitops` branch](../../tree/gitops) | GitHub Actions pipeline, Argo CD configuration values, and GitOps-specific infrastructure |
+| [`screenshots/`](screenshots/) | Deployment, pipeline, and scaling evidence |
 
 ## Tools and services
 
@@ -30,6 +51,20 @@ The Jenkins deployment and the GitOps deployment are separate Helm releases. Jen
 | Metrics Server and HPA | Measured resource usage and scaled application replicas |
 | Cluster Autoscaler | Adjusted worker-node capacity when workloads needed it |
 | AWS Load Balancer Controller | Created the application load balancer from the Kubernetes ingress |
+
+## Prerequisites and reproducibility
+
+To recreate the AWS deployment, you need an AWS account and CLI access, Terraform, Docker, `kubectl`, Helm, and an IAM principal authorized to provision networking, ECR, EKS, and related roles. Running a managed EKS cluster, worker nodes, and a load balancer **incurs AWS charges**.
+
+1. Configure an AWS CLI profile and verify the account with `aws sts get-caller-identity`.
+2. From `terraform/`, run `terraform init`, `terraform validate`, and `terraform plan -var="allowed_api_cidr=YOUR_PUBLIC_IP/32"`. Replace `YOUR_PUBLIC_IP` with your public IPv4 address to restrict EKS API access. Review the planned resources and costs before applying.
+3. Apply the reviewed Terraform configuration with the same `allowed_api_cidr` value. Configure `kubectl` using the command below and verify worker-node readiness.
+4. Build and publish a container image to the created ECR repository; configure Helm with that repository and image tag. Install the AWS Load Balancer Controller if using the public Ingress.
+5. Run the Jenkins pipeline from a Jenkins agent with Docker, AWS CLI, Helm, and Kubernetes credentials, or deploy the image using Helm directly. The **GitOps workflow is separate** and is documented in the [`gitops` branch](../../tree/gitops).
+
+> The source contains infrastructure and application configuration, but the README is **not** a turnkey, zero-configuration deployment script. The Jenkins controller, Argo CD connection, EKS add-ons, and local AWS credentials require environment-specific setup. Do not commit access keys, tokens, kubeconfig files, Terraform state, or secrets.
+
+## Run locally
 
 ## 1. Create and containerize the application
 
@@ -59,7 +94,7 @@ aws eks update-kubeconfig --region us-east-1 --name tech-challenge-2-cluster
 kubectl get nodes
 ```
 
-Terraform state is local in this lab. Keep the state and any backups secure and do not commit them to Git.
+Terraform state is local in this lab. Keep the state and any backups secure and do not commit them to Git. The example EKS worker nodes use public subnets for lab simplicity; a production architecture should use private worker-node subnets and stricter network controls.
 
 ![Terraform finished creating the infrastructure.](screenshots/15-terraform-apply-complete.png)
 
@@ -76,7 +111,7 @@ kubectl rollout status deployment/hello-app
 kubectl get ingress hello-app
 ```
 
-I opened the load balancer address in a browser and confirmed that the application displayed **Hello, World!** The lab used HTTP; production deployments should use TLS and appropriate network controls.
+I opened the load balancer address in a browser and confirmed that the application displayed **Hello, World!** The lab used HTTP; production deployments should use TLS, private worker nodes, and appropriate network controls.
 
 ![I verified the application through the Application Load Balancer.](screenshots/29-application-through-alb.png)
 
@@ -102,7 +137,7 @@ I configured Jenkins to poll the repository and verified a successful build trig
 
 ## 5. Configure GitOps with GitHub Actions and Argo CD
 
-I created a separate [`gitops` branch](../../tree/gitops) and configured [GitHub Actions](../../tree/gitops/.github/workflows) to authenticate to AWS using OpenID Connect (OIDC). The workflow builds an image, pushes it to ECR, and commits the new image tag to `helm/tech-challenge-2/values-gitops.yaml`.
+I created a separate [`gitops` branch](../../tree/gitops) and configured [GitHub Actions](../../tree/gitops/.github/workflows/build-ecr.yml) to authenticate to AWS using OpenID Connect (OIDC). The workflow builds an image, pushes it to ECR, and commits the new image tag to `helm/tech-challenge-2/values-gitops.yaml`.
 
 I connected the repository to Argo CD and created the `hello-gitops` application with:
 
@@ -171,7 +206,7 @@ I confirmed successful Jenkins and GitHub Actions runs, healthy Argo CD synchron
 
 ## Screenshots
 
-Additional project screenshots are available in the [screenshots folder](screenshots/).
+Additional project screenshots are available in the [screenshots folder](screenshots/). Screenshots reflect testing at the time of the lab; they do not demonstrate currently running AWS resources.
 
 ## Cost and cleanup
 
