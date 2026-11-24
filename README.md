@@ -1,4 +1,10 @@
-# Application Deployment with EKS, Jenkins, and GitOps
+# AWS EKS Application Deployment | Terraform, Jenkins & GitOps
+
+A hands-on deployment of a containerized Python/Flask application to **Amazon EKS**, with two independent CI/CD approaches: **Jenkins + Helm** and **GitHub Actions + Argo CD**.
+
+**[Architecture](#architecture) · [Source code](app.py) · [Terraform](terraform/) · [Helm chart](helm/tech-challenge-2/) · [Jenkins pipeline](Jenkinsfile) · [GitOps branch](../../tree/gitops) · [Screenshots](screenshots/)**
+
+> **Deployment status:** This repository documents a tested lab deployment; the AWS infrastructure may have been torn down to avoid ongoing charges. Screenshots show results from the completed tests, not a currently hosted live application.
 
 ## Architecture
 
@@ -44,7 +50,7 @@ Open `http://localhost:5000` to test the application. Stop the container with Ct
 
 ## 2. Provision AWS infrastructure
 
-I used Terraform to define the AWS infrastructure, including a VPC, networking, IAM resources, an ECR repository, and the EKS cluster and managed node group. The lab used the `us-east-1` region and `t3.small` worker nodes.
+I used [Terraform configuration](terraform/) to define the AWS infrastructure, including a VPC, networking, IAM resources, an ECR repository, and the EKS cluster and managed node group. The lab used the `us-east-1` region and `t3.small` worker nodes.
 
 I configured the Kubernetes tools to connect to the cluster and verified the worker nodes:
 
@@ -61,7 +67,7 @@ Terraform state is local in this lab. Keep the state and any backups secure and 
 
 ## 3. Deploy with Helm and expose the application
 
-I used the Helm chart in `helm/tech-challenge-2` to define the deployment, service, ingress, and autoscaling configuration. I installed the AWS Load Balancer Controller so the Kubernetes ingress could create an Application Load Balancer.
+I used the Helm chart in [`helm/tech-challenge-2`](helm/tech-challenge-2/) to define the deployment, service, ingress, and autoscaling configuration. I installed the AWS Load Balancer Controller so the Kubernetes ingress could create an Application Load Balancer.
 
 I verified the rollout and retrieved the ingress address:
 
@@ -78,7 +84,7 @@ I opened the load balancer address in a browser and confirmed that the applicati
 
 ## 4. Automate deployment with Jenkins
 
-I ran a Jenkins controller locally in Docker and connected a Windows inbound agent. The pipeline in `Jenkinsfile` checks out the private repository, creates a unique image tag, builds the Docker image, pushes it to ECR, and deploys it to EKS using Helm.
+I ran a Jenkins controller locally in Docker and connected a Windows inbound agent. The pipeline in [`Jenkinsfile`](Jenkinsfile) checks out the repository, creates a unique image tag, builds the Docker image, pushes it to ECR, and deploys it to EKS using Helm.
 
 The pipeline stages are:
 
@@ -96,9 +102,9 @@ I configured Jenkins to poll the repository and verified a successful build trig
 
 ## 5. Configure GitOps with GitHub Actions and Argo CD
 
-I created a separate `gitops` branch and configured GitHub Actions to authenticate to AWS using OpenID Connect (OIDC). The workflow builds an image, pushes it to ECR, and commits the new image tag to `helm/tech-challenge-2/values-gitops.yaml`.
+I created a separate [`gitops` branch](../../tree/gitops) and configured [GitHub Actions](../../tree/gitops/.github/workflows) to authenticate to AWS using OpenID Connect (OIDC). The workflow builds an image, pushes it to ECR, and commits the new image tag to `helm/tech-challenge-2/values-gitops.yaml`.
 
-I connected the private repository to Argo CD and created the `hello-gitops` application with:
+I connected the repository to Argo CD and created the `hello-gitops` application with:
 
 - **Revision:** `gitops`
 - **Chart path:** `helm/tech-challenge-2`
@@ -106,7 +112,7 @@ I connected the private repository to Argo CD and created the `hello-gitops` app
 - **Destination namespace:** `gitops-demo`
 - **Synchronization:** automatic
 
-The GitOps values disable ingress for this separate release. I verified that a Git change led to a new image tag, an Argo CD sync, and a successful Kubernetes rollout:
+The [GitOps values](../../blob/gitops/helm/tech-challenge-2/values-gitops.yaml) disable ingress for this separate release. I verified that a Git change led to a new image tag, an Argo CD sync, and a successful Kubernetes rollout:
 
 ![Argo CD synchronized the GitOps application.](screenshots/68-argocd-automatic-sync.png)
 
